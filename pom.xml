@@ -16,7 +16,14 @@
         <java.version>11</java.version>
     </properties>
 
-    <dependencies></dependencies>
+    <dependencies>
+        <!-- https://mvnrepository.com/artifact/log4j/log4j -->
+        <dependency>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+            <version>1.2.17</version>
+        </dependency>
+    </dependencies>
 
     <build>
         <pluginManagement>
@@ -83,6 +90,8 @@
                 <sonar.host.url>http://localhost:9000</sonar.host.url>
                 <sonar.login>admin</sonar.login>
                 <sonar.password>password</sonar.password>
+<!--                <sonar.java.binaries>src/main/java/</sonar.java.binaries>-->
+<!--                <sonar.exclusions>.idea, target, .scannerwork</sonar.exclusions>-->
             </properties>
             <build>
                 <plugins>

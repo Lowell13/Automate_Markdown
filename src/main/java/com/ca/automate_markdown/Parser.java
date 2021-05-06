@@ -1,5 +1,7 @@
 package com.ca.automate_markdown;
 
+import org.apache.log4j.Logger;
+
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -7,20 +9,18 @@ import java.util.List;
 public class Parser {
 
     private State state = State.INITIAL;
-    private final StringBuffer jsonReturned = new StringBuffer("{\n");
+    private final StringBuilder jsonReturned = new StringBuilder("{\n");
+    private static final Logger LOGGER = Logger.getLogger(Parser.class);
 
     public void parse(String pathFile) {
         State newState;
         List<String> listStrings = new ArrayList<>();
 
-        try {
-            File file = new File(pathFile);
-            FileReader fileReader = new FileReader(file);
-            BufferedReader bufferedReader = new BufferedReader(fileReader);
+        try (var bufferedReader = new BufferedReader(new FileReader(pathFile))) {
             String line;
 
             while ((line = bufferedReader.readLine()) != null) {
-                System.out.println("Line : " + line);
+                LOGGER.debug("Line : " + line);
 
                 newState = checkNextState(listStrings, line);
 
@@ -61,7 +61,7 @@ public class Parser {
                 }
 
                 state = newState;
-                System.out.println("State : " + state);
+                LOGGER.debug("State : " + state);
 
             }
 
@@ -76,11 +76,11 @@ public class Parser {
             }
 
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.debug(e.getStackTrace());
         }
 
         jsonReturned.append("}");
-        System.out.println("This is JSON :\n" + jsonReturned);
+        LOGGER.info("This is JSON :\n" + jsonReturned);
     }
 
     private State checkNextState(List<String> buffer, String line) {
@@ -105,8 +105,8 @@ public class Parser {
     }
 
     private void appendTitle(List<String> listStrings) {
-        int titleSize = 0;
-        String tmp = listStrings.get(0);
+        var titleSize = 0;
+        var tmp = listStrings.get(0);
 
         while (tmp.charAt(titleSize) == '#') {
             titleSize++;
