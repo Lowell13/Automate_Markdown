@@ -90,8 +90,6 @@
                 <sonar.host.url>http://localhost:9000</sonar.host.url>
                 <sonar.login>admin</sonar.login>
                 <sonar.password>password</sonar.password>
-<!--                <sonar.java.binaries>src/main/java/</sonar.java.binaries>-->
-<!--                <sonar.exclusions>.idea, target, .scannerwork</sonar.exclusions>-->
             </properties>
             <build>
                 <plugins>

@@ -10,6 +10,11 @@ public class Parser {
 
     private State state = State.INITIAL;
     private final StringBuilder jsonReturned = new StringBuilder("{\n");
+
+    private static final String EOL = "\",\n";
+    private static final String APPEND_CODE = "\"code\": \"";
+    private static final String APPEND_PARAGRAPHE = "\"p\": \"";
+
     private static final Logger LOGGER = Logger.getLogger(Parser.class);
 
     public void parse(String pathFile) {
@@ -19,60 +24,50 @@ public class Parser {
         try (var bufferedReader = new BufferedReader(new FileReader(pathFile))) {
             String line;
 
-            while ((line = bufferedReader.readLine()) != null) {
+            while (!state.equals(State.FINISHED)) {
+                line = bufferedReader.readLine();
                 LOGGER.debug("Line : " + line);
 
-                newState = checkNextState(listStrings, line);
+                newState = checkNextState(line);
+                if (newState == State.TITLE || newState == State.LIST || newState == State.PARAGRAPH) {
+                    listStrings.add(line);
+                }
 
-                if (state == State.CODE) {
-                    while (checkNextState(listStrings, line = bufferedReader.readLine()) != State.CODE) {
-                        // WHILE while we're not in a CODE state
-                    }
-                        appendCode(listStrings);
-                        listStrings = new ArrayList<>();
-                        // Skip line for end of code
-                        bufferedReader.readLine();
-                } else if (state == State.TITLE) {
-                    if (newState != State.TITLE) {
-                        appendTitle(listStrings);
-                        listStrings = new ArrayList<>();
-                        if (newState != State.EMPTY_LINE && newState != State.INITIAL) {
+                if (newState == State.CODE) {
+                    do {
+                        line = bufferedReader.readLine();
+                        newState = checkNextState(line);
+                        if (newState != State.CODE) {
                             listStrings.add(line);
                         }
+                    } while (newState != State.CODE);
+
+                    appendCodeAndParagraphe(APPEND_CODE, listStrings);
+                    listStrings = new ArrayList<>();
+                } else if (state == State.TITLE && newState != State.TITLE) {
+                    appendTitle(listStrings);
+                    listStrings = new ArrayList<>();
+                    if (newState != State.EMPTY_LINE && newState != State.INITIAL) {
+                        listStrings.add(line);
                     }
-                } else if (state == State.LIST) {
-                    if (newState != State.LIST) {
-                        appendList(listStrings);
-                        listStrings = new ArrayList<>();
-                        if (newState != State.EMPTY_LINE && newState != State.INITIAL) {
-                            listStrings.add(line);
-                        }
+                } else if (state == State.LIST && newState != State.LIST) {
+                    appendList(listStrings);
+                    listStrings = new ArrayList<>();
+                    if (newState != State.EMPTY_LINE && newState != State.INITIAL) {
+                        listStrings.add(line);
                     }
-                } else if (state == State.PARAGRAPH) {
-                    if (newState != State.PARAGRAPH) {
-                        appendParagraph(listStrings);
-                        listStrings = new ArrayList<>();
-                        if (newState != State.EMPTY_LINE && newState != State.INITIAL) {
-                            listStrings.add(line);
-                        }
+                } else if (state == State.PARAGRAPH && newState != State.PARAGRAPH) {
+                    appendCodeAndParagraphe(APPEND_PARAGRAPHE, listStrings);
+                    listStrings = new ArrayList<>();
+                    if (newState != State.EMPTY_LINE && newState != State.INITIAL) {
+                        listStrings.add(line);
                     }
-                } else if (state == State.EMPTY_LINE || state == State.INITIAL) {
-                    // DO NOTHING.
+                } else if (newState == State.EOF) {
+                    newState = State.FINISHED;
                 }
 
                 state = newState;
                 LOGGER.debug("State : " + state);
-
-            }
-
-            if (this.state == State.CODE) {
-                appendCode(listStrings);
-            } else if (this.state == State.LIST) {
-                appendList(listStrings);
-            } else if (this.state == State.TITLE) {
-                appendTitle(listStrings);
-            } else if (this.state == State.PARAGRAPH) {
-                appendParagraph(listStrings);
             }
 
         } catch (IOException e) {
@@ -80,24 +75,23 @@ public class Parser {
         }
 
         jsonReturned.append("}");
-        LOGGER.info("This is JSON :\n" + jsonReturned);
+        LOGGER.info("This is the equivalent JSON :\n" + jsonReturned);
     }
 
-    private State checkNextState(List<String> buffer, String line) {
+    private State checkNextState(String line) {
         State toReturn;
 
-        if (line.matches("```.*")) {
+        if (line == null) {
+            toReturn = State.EOF;
+        } else if (line.matches("```.*")) {
             toReturn = State.CODE;
         } else if (line.matches("^(?![\\s\\S])")) {
             toReturn = State.EMPTY_LINE;
         } else if (line.matches("#.*")) {
-            buffer.add(line);
             toReturn = State.TITLE;
         } else if (line.matches("\\*.*")) {
-            buffer.add(line);
             toReturn = State.LIST;
         } else {
-            buffer.add(line);
             toReturn = State.PARAGRAPH;
         }
 
@@ -123,38 +117,43 @@ public class Parser {
                 .append("\n");
     }
 
-    private void appendCode(List<String> listStrings) {
+    private void appendCodeAndParagraphe(String appendType, List<String> listStrings) {
+        this.jsonReturned.append(appendType);
 
-        this.jsonReturned.append("\"code\": \"");
+        for (var i = 0; i < listStrings.size(); i++) {
+            var str = listStrings.get(i);
 
-        for (String str: listStrings) {
+            if (str.contains("\"")) {
+                str = str.replace("\"", "\\\"");
+            }
             this.jsonReturned.append(str);
+
+            if (i + 1 < listStrings.size()) {
+                this.jsonReturned.append("\\n");
+            }
         }
 
-        this.jsonReturned.append("\",\n");
-    }
-
-    private void appendParagraph(List<String> listStrings) {
-        this.jsonReturned.append("\"p\": \"");
-
-        for (String str: listStrings) {
-            this.jsonReturned.append(str);
-        }
-
-        this.jsonReturned.append("\",\n");
+        this.jsonReturned.append(EOL);
     }
 
     private void appendList(List<String> listStrings) {
         this.jsonReturned.append("\"ul\": [");
 
-        for(String str: listStrings) {
-            str = str.substring(2);
+        for(var i = 0; i < listStrings.size(); i++) {
+            var str = listStrings.get(i).substring(2);
+
             jsonReturned
                     .append("\"")
-                    .append(str)
-                    .append("\", ");
+                    .append(str);
+
+            if (i + 1 < listStrings.size()) {
+                jsonReturned.append("\", ");
+            } else {
+                jsonReturned.append("\"");
+            }
         }
 
         jsonReturned.append("]")
-                .append("\",\n");    }
+                .append(EOL);
+    }
 }

@@ -6,5 +6,7 @@ public enum State {
     PARAGRAPH,
     CODE,
     LIST,
-    EMPTY_LINE
+    EMPTY_LINE,
+    EOF,
+    FINISHED
 }
